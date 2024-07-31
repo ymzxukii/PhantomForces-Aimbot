@@ -10,6 +10,7 @@ local run_service = game:GetService("RunService")
 local teams = game:GetService("Teams")
 local plr_service = game:GetService("Players")
 local user_input_service = game:GetService("UserInputService")
+local raycast_service = workspace:FindFirstChildOfClass("RaycastService") or workspace
 
 --// tables
 
@@ -101,8 +102,10 @@ function get_closest_player()
                 if onscreen then
                     local dist = (Vector2.new(w2s.X, w2s.Y) - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)).Magnitude
                     if dist < features.aimbot.fov and dist < closest_dist then
-                        closest = player
-                        closest_dist = dist
+                        if is_visible(character[features.aimbot.hitpart]) then
+                            closest = player
+                            closest_dist = dist
+                        end
                     end
                 end
             end
@@ -110,6 +113,22 @@ function get_closest_player()
     end
 
     return closest
+end
+
+function is_visible(part)
+    local origin = camera.CFrame.Position
+    local direction = (part.Position - origin).Unit
+    local ray = Ray.new(origin, direction * 1000)  -- Cast a ray in the direction of the target
+
+    -- Perform the raycast
+    local result = raycast_service:Raycast(origin, direction * 1000)
+
+    -- Check if the ray hit the part
+    if result and result.Instance == part then
+        return true
+    end
+
+    return false
 end
 
 --// logic
