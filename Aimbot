@@ -1,0 +1,151 @@
+--// aimbot version (mouse api required)
+--// vars
+
+local players = workspace.Players
+local camera = workspace.CurrentCamera
+
+--// services
+
+local run_service = game:GetService("RunService")
+local teams = game:GetService("Teams")
+local plr_service = game:GetService("Players")
+local user_input_service = game:GetService("UserInputService")
+
+--// tables
+
+local features = {
+    aimbot = {enabled = true, fov = 100, hitpart = "head"},
+    chams = {enabled = true, color = {fill = Color3.fromRGB(121, 106, 255), outline = Color3.fromRGB(119, 121, 255)}, transparency = {fill = 0, outline = 0}},
+}
+
+local tracking_speed = 4.0  -- Increased tracking speed
+
+--// instances
+
+local fov_circle = Drawing.new("Circle")
+fov_circle.Color = Color3.fromRGB(255, 255, 255)
+fov_circle.Radius = features.aimbot.fov
+fov_circle.Visible = true
+
+--// functions
+
+function is_ally(player)
+    if not player then
+        return false
+    end
+
+    local helmet = player:FindFirstChildWhichIsA("Folder") and player:FindFirstChildWhichIsA("Folder"):FindFirstChildOfClass("MeshPart")
+    if not helmet then
+        return false
+    end
+
+    if helmet.BrickColor == BrickColor.new("Black") then
+        return teams.Phantoms == plr_service.LocalPlayer.Team
+    end
+
+    return teams.Ghosts == plr_service.LocalPlayer.Team
+end
+
+function get_players()
+    local entity_list = {}
+
+    for _, team in players:GetChildren() do
+        for _, player in team:GetChildren() do
+            if player:IsA("Model") and not is_ally(player) then
+                entity_list[#entity_list+1] = player
+            end
+        end
+    end
+
+    return entity_list
+end
+
+function add_chams(adornee)
+    local highlight = Instance.new("Highlight", adornee)
+    
+    highlight.FillColor = features.chams.color.fill
+    highlight.OutlineColor = features.chams.color.outline
+    highlight.FillTransparency = features.chams.transparency.fill
+    highlight.OutlineTransparency = features.chams.transparency.outline
+end
+
+function get_character(player)
+    local char = {
+        head = nil,
+        torso = nil,
+    }
+
+    for _, bodypart in player:GetChildren() do
+        if bodypart:IsA("BasePart") or bodypart:IsA("MeshPart") then
+            if bodypart.Size == Vector3.new(1, 1, 1) then
+                char.head = bodypart
+            elseif bodypart.Size == Vector3.new(2, 2, 1) then
+                char.torso = bodypart
+            end
+        end
+    end
+
+    return char
+end
+
+function get_closest_player()
+    local closest = nil
+    local closest_dist = math.huge
+
+    for _, player in get_players() do
+        if player then
+            local character = get_character(player)
+
+            if character and character.torso then
+                local w2s, onscreen = camera:WorldToViewportPoint(character.torso.Position)
+                if onscreen then
+                    local dist = (Vector2.new(w2s.X, w2s.Y) - Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)).Magnitude
+                    if dist < features.aimbot.fov and dist < closest_dist then
+                        closest = player
+                        closest_dist = dist
+                    end
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+--// logic
+
+run_service.RenderStepped:Connect(function()
+    if features.aimbot.enabled and user_input_service:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local closest = get_closest_player()
+        if closest then
+            local character = get_character(closest)
+            local hitpart = character[features.aimbot.hitpart]
+
+            if character and hitpart then
+                local w2s = camera:WorldToViewportPoint(hitpart.Position)
+                local centerX, centerY = camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2
+
+                -- Calculate the movement needed to snap the mouse to the target
+                local moveX = (w2s.X - centerX) * tracking_speed
+                local moveY = (w2s.Y - centerY) * tracking_speed
+
+                -- Move the mouse cursor directly to the target position
+                -- Note: `mousemoverel` might not work as expected if Roblox has restrictions
+                -- Adjust this implementation if direct setting is not allowed
+                mousemoverel(moveX, moveY)
+            end
+        end
+    end
+
+    -- Add chams to players
+    for _, player in get_players() do
+        if player and player:FindFirstChildWhichIsA("Model") and not player:FindFirstChildWhichIsA("Highlight") then
+            if features.chams.enabled then
+                add_chams(player)
+            end
+        end
+    end
+
+    -- Update FOV circle position
+    fov_circle.Position = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y / 2)
+end)
