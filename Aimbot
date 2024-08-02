@@ -19,7 +19,7 @@ local features = {
     chams = {enabled = true, color = {fill = Color3.fromRGB(121, 106, 255), outline = Color3.fromRGB(119, 121, 255)}, transparency = {fill = 0, outline = 0}},
 }
 
-local tracking_speed = 4.0  -- Increased tracking speed
+local tracking_speed = 2.6  -- Increased tracking speed
 
 --// instances
 
